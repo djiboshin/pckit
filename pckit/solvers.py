@@ -6,7 +6,7 @@ import sys
 from abc import ABC, abstractmethod
 
 from multiprocessing import Queue, JoinableQueue
-from typing import Any, Sequence, Union, List
+from typing import Any, Sequence, Union, List, Iterator, Callable, Iterable
 import time
 import logging
 
@@ -20,6 +20,11 @@ from ._utils import tasks_sort
 logger = logging.getLogger(__package__ + '.solver')
 
 
+def task_iterator(iterable: Sequence[Task]) -> Iterator[Task]:
+    """Returns Iterator from on iterable"""
+    return iterable.__iter__()
+
+
 class Solver(ABC):
     """Base Solver class"""
     def __init__(self):
@@ -27,10 +32,14 @@ class Solver(ABC):
         self.cache = {}
         self.total_workers = 0
 
-    def solve(self, tasks: Sequence[Task]) -> List[Any]:
+    def solve(self,
+              tasks: Sequence[Task],
+              iterator: Callable[[Sequence[Task]], Union[Iterator[Task], Iterable[Task]]] = task_iterator
+              ) -> List[Any]:
         """Solves tasks
 
         :param tasks: tasks to solve
+        :param iterator: function which wraps iterable tasks list and return iterator
         :return: list of results
         """
         if self.caching:
@@ -47,7 +56,7 @@ class Solver(ABC):
         logger.info(message)
         start_time = time.time()
 
-        res = self._solve(tasks, to_solve, cached, same)
+        res = self._solve(tasks, to_solve, cached, same, iterator)
 
         end_time = time.time()
         logger.info('All the tasks have been solved in %.2fs', end_time - start_time)
@@ -59,7 +68,8 @@ class Solver(ABC):
             tasks: Sequence[Task],
             to_solve: List[int],
             cached: List[int],
-            same: List[int]
+            same: List[int],
+            iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Any]:
         pass
 
@@ -103,7 +113,8 @@ class MultiprocessingSolver(Solver):
             tasks: Sequence[Task],
             to_solve: List[int],
             cached: List[int],
-            same: List[int]
+            same: List[int],
+            iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Any]:
         results = [None for _ in tasks]
         for i, task in enumerate(tasks):
@@ -113,8 +124,8 @@ class MultiprocessingSolver(Solver):
                 results[i] = self.cache[task.tag]
             else:
                 results[i] = None
-
-        for _ in range(len(to_solve)):
+        tasks_to_solve = [task for i, task in enumerate(tasks) if i in to_solve]
+        for _ in iterator(tasks_to_solve):
             (i, res) = self._results.get()
             if i == -1:
                 raise RuntimeError(res)
@@ -155,10 +166,11 @@ class SimpleSolver(Solver):
             tasks: Sequence[Task],
             to_solve: List[int],
             cached: List[int],
-            same: List[int]
+            same: List[int],
+            iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Any]:
         results = [None for _ in tasks]
-        for i, task in enumerate(tasks):
+        for i, task in enumerate(iterator(tasks)):
             if i in to_solve:
                 try:
                     results[i] = self.worker.do_the_job(task.args, task.kwargs)
@@ -203,19 +215,22 @@ class MPISolver(Solver):
             tasks: Sequence[Task],
             to_solve: List[int],
             cached: List[int],
-            same: List[int]
+            same: List[int],
+            iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Any]:
         results = [None for _ in tasks]
         requests = []
+        tasks_to_solve = []
         for i, task in enumerate(tasks):
             if i in to_solve:
                 dest = len(requests) % self.total_workers + 1
                 req = self.comm.isend((i, task.args, task.kwargs), dest=dest, tag=i)
                 req.wait()
                 requests.append(self.comm.irecv(self.buffer_size, source=dest))
+                tasks_to_solve.append(task)
             elif i in cached:
                 results[i] = self.cache[task.tag]
-        for request in requests:
+        for request, task in zip(requests, iterator(tasks_to_solve)):
             i, res = request.wait()
             if self.caching:
                 self.cache[tasks[i].tag] = res
