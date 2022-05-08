@@ -25,7 +25,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v3
       with:
-        python-version: '3.x'
+        python-version: '3.9'
     - name: Install mpi4py dependencies
       run: |
         sudo apt-get install mpich
@@ -36,6 +36,8 @@ jobs:
         poetry update
         poetry install
     - name: Build package
-      run: poetry build
+      run: |
+        poetry build
     - name: Publish package
-      run: poetry publish -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        poetry publish -u __token__ -p ${{ secrets.PYPI_API_TOKEN }}
