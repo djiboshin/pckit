@@ -14,8 +14,8 @@ from .task import Task
 from .workers import Worker, MultiprocessingWorker, MPIWorker
 from ._utils import tasks_sort
 
-# TODO add info to return after .solve()
-# TODO add additional threads to control workers' errors
+# TODO(add info to return after .solve())
+# TODO(add additional threads to control workers' errors)
 
 logger = logging.getLogger(__package__ + '.solver')
 
