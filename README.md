@@ -2,8 +2,6 @@
 
 This is a simple package for parallel computing with Python.
 
-***
-
 ## Usage
 ### Multiprocessing
 Simple multiprocess solver usage.
@@ -41,8 +39,6 @@ worker = pckit.SimpleMPIWorker(model)
 
 ### Examples
 [More examples](./examples)
-
-***
 
 ## Features
 ### Cache
