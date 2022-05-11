@@ -9,10 +9,6 @@ class MyModel(pckit.Model):
         return 0
 
 
-def iterator(lst):
-    return tqdm.tqdm(lst)
-
-
 if __name__ == '__main__':
     tasks = [pckit.task.Task(1) for _ in range(10)]
     # init the model
@@ -23,4 +19,4 @@ if __name__ == '__main__':
     # init the solver
     with pckit.get_solver(worker) as solver:
         # start solution with specified iterator
-        results = solver.solve(tasks, iterator=iterator)
+        results = solver.solve(tasks, iterator=tqdm.tqdm)

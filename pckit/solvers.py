@@ -196,6 +196,7 @@ class MPISolver(Solver):
         self.caching = caching
         self.buffer_size = buffer_size
         self.comm = MPI.COMM_WORLD
+        self._MPI = MPI
         self.rank = self.comm.Get_rank()
         self.total_workers = self.comm.Get_size() - 1
 
@@ -230,8 +231,8 @@ class MPISolver(Solver):
                 tasks_to_solve.append(task)
             elif i in cached:
                 results[i] = self.cache[task.tag]
-        for request, task in zip(requests, iterator(tasks_to_solve)):
-            i, res = request.wait()
+        for _ in iterator(tasks_to_solve):
+            (k, (i, res)) = self._MPI.Request.waitany(requests)
             if self.caching:
                 self.cache[tasks[i].tag] = res
             results[i] = res

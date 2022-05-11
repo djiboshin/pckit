@@ -6,8 +6,6 @@ import time
 # Be careful with multiprocessing and file logging handler at the same time
 import logging
 
-import pckit.task
-
 gs = logging.getLogger('pckit.solver')
 gs.addHandler(logging.StreamHandler(sys.stdout))
 gs.setLevel(logging.INFO)
@@ -29,7 +27,7 @@ class MyModel(pckit.Model):
 # The __name__ condition is not really needed since all
 # spawned processes will be spawned as main.
 if __name__ == '__main__':
-    tasks = [pckit.task.Task(1) for _ in range(10)]
+    tasks = [pckit.Task(1) for _ in range(10)]
     # init the model
     model = MyModel()
 
