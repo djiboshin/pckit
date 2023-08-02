@@ -17,6 +17,7 @@ python = "^3.9"
 numpy = "^1.25.2"
 pandas = "^2.0.3"
 MPh = "^1.1.5"
+pytest = "7.1.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
