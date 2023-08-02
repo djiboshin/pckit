@@ -134,7 +134,7 @@ class ComsolModel(mph.Model, Model):
         evaluation.property('data', dataset)
         java = evaluation.java
         real, imag = java.computeResult()
-        results = np.array(real) + 1j * np.array(imag)
+        results = (np.array(real) + 1j * np.array(imag)) if imag is not None else np.array(real)
         return pd.DataFrame(data=results, columns=make_unique(evaluation.property('descr')))
 
     def clear(self):

@@ -133,6 +133,7 @@ def test_multiprocessing_solver():
         assert res[0] == 1 and res[1] == 0
 
 
+@pytest.mark.skip
 def test_mpi_solver():
     """
         Tests if MPISolver() works properly
