@@ -16,7 +16,7 @@ gw.setLevel(logging.DEBUG)
 
 # adding own Model subclass with results method will be called for each task by solver
 class MyModel(pckit.Model):
-    def results(self, n, *args, **kwargs):
+    def results(self, n: int) -> int:
         time.sleep(n)
         return 0
 
@@ -27,12 +27,14 @@ class MyModel(pckit.Model):
 # The __name__ condition is not really needed since all
 # spawned processes will be spawned as main.
 if __name__ == '__main__':
-    tasks = [pckit.Task(1) for _ in range(10)]
+    tasks = [1 for _ in range(10)]
     # init the model
     model = MyModel()
 
     # -== MPI solver ==-
-    worker = pckit.SimpleMPIWorker(model)
+    worker = pckit.MPIWorker(model)
+    b = worker.do_the_job(1)
+
     # init the solver
     with pckit.get_solver(worker) as solver:
         results = solver.solve(tasks)

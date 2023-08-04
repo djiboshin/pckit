@@ -2,25 +2,23 @@ import multiprocessing
 import os.path
 from typing import Sequence
 
-import tqdm
-
 import pckit
 import pytest
-import importlib.util
 import subprocess
 import sys
 
 import pckit.task
+from test_fixtures import model
 
 
-def test_get_solver():
+def test_get_solver(model):
     """
     Tests if the get_solver() function works properly
     """
-    worker = pckit.SimpleWorker(pckit.TestModel())
+    worker = pckit.Worker(model)
     assert isinstance(pckit.get_solver(worker), pckit.SimpleSolver)
 
-    worker = pckit.SimpleMultiprocessingWorker(pckit.TestModel())
+    worker = pckit.MultiprocessingWorker(model)
     assert isinstance(pckit.get_solver(worker), pckit.MultiprocessingSolver)
 
     # worker = pckit.SimpleMPIWorker(pckit.TestModel())
@@ -32,7 +30,7 @@ def test_get_solver():
 def basic_test_solve(worker: pckit.Worker):
     # can solve a task
     with pckit.get_solver(worker=worker) as solver:
-        tasks = [pckit.task.Task(1), pckit.task.Task(0)]
+        tasks = [1, 0]
         res = solver.solve(tasks)
         # right results
         assert res[0] == 1 and res[1] == 0
@@ -43,18 +41,17 @@ def basic_test_cache(worker: pckit.Worker):
     # can use cache
     with pckit.get_solver(worker=worker, caching=True) as solver:
         tasks = [
-            pckit.task.Task(1, tag='1'),
-            pckit.task.Task(2, tag='1'),
+            1,
         ]
         solver.solve(tasks)
-        assert ('1' in solver.cache) and ('3' not in solver.cache)
+        assert (1 in solver.cache) and (3 not in solver.cache)
 
 
 @pytest.mark.skip
 def basic_test_error(worker: pckit.Worker):
     with pckit.get_solver(worker=worker) as solver:
         # can handle errors
-        tasks = [pckit.task.Task(-2)]
+        tasks = [-2]
         try:
             solver.solve(tasks)
         except Exception as e:
@@ -76,10 +73,10 @@ def basic_test_iterator(worker: pckit.Worker):
     with pckit.get_solver(worker=worker) as solver:
         # can use iterator
         tasks = [
-            pckit.task.Task(1),
-            pckit.task.Task(0),
-            pckit.task.Task(1),
-            pckit.task.Task(0)
+            1,
+            0,
+            1,
+            0
         ]
         iters = []
         solver.solve(tasks, iterator=lambda x: iterator(x, iters))
@@ -88,11 +85,10 @@ def basic_test_iterator(worker: pckit.Worker):
         solver.solve(tasks, iterator=lambda x: x)
 
 
-def test_basic_functions():
-    model = pckit.TestModel()
+def test_basic_functions(model):
     test_workers = [
-        pckit.SimpleWorker(model=model),
-        pckit.SimpleMultiprocessingWorker(model=model),
+        pckit.Worker(model=model),
+        pckit.MultiprocessingWorker(model=model),
     ]
 
     for worker in test_workers:
@@ -102,20 +98,20 @@ def test_basic_functions():
         basic_test_iterator(worker)
 
 
-def test_simple_solver():
+def test_simple_solver(model):
     """
         Tests if SimpleSolver() works properly
     """
 
-    worker = pckit.SimpleWorker(model=pckit.TestModel())
+    worker = pckit.Worker(model=model)
     solver = pckit.SimpleSolver(worker=worker)
 
 
-def test_multiprocessing_solver():
+def test_multiprocessing_solver(model):
     """
         Tests if MultiprocessingSolver() works properly
     """
-    worker = pckit.SimpleMultiprocessingWorker(model=pckit.TestModel())
+    worker = pckit.MultiprocessingWorker(model=model)
 
     # creates workers
     n = 4
@@ -127,7 +123,7 @@ def test_multiprocessing_solver():
         # amount spawned
         assert len(solver.workers) == n == solver.total_workers
 
-        tasks = [pckit.task.Task(1), pckit.task.Task(0)]
+        tasks = [1, 0]
         res = solver.solve(tasks)
         # right results
         assert res[0] == 1 and res[1] == 0

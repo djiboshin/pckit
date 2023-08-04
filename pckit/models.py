@@ -1,49 +1,33 @@
 """
 This module contains different Models
 """
-from abc import ABC, abstractmethod
-from typing import Any, AnyStr, Dict
+from abc import ABC, abstractmethod, ABCMeta
+from typing import Any, AnyStr, Dict, Generic, TypeVar, Type, Protocol, Callable
 
 import mph
 import pandas as pd
 import numpy as np
 
 from ._utils import make_unique
+from ._typevars import Task, Result
 
 
-class Model(ABC):
+class Model(Generic[Task, Result]):
     """
     The Model abstract base class.
     """
     @abstractmethod
-    def results(self, *args, **kwargs) -> Any:
+    def results(self, task: Task) -> Result:
         """
         Function to be solved
         """
-
-
-class TestModel(Model):
-    """
-    Simple subclass of Model fot tests
-    """
-    def results(self, x):
-        """Returns squared number
-
-        :param x: any number
-        :return: squared number
-        """
-        if x == 1:
-            return x
-        elif x == 0:
-            return x
-        raise ValueError('Test value error')
 
 
 # TODO SMUTHI Model
 # TODO logging here?
 
 # noinspection PyMissingOrEmptyDocstring
-class ComsolModel(mph.Model, Model):
+class ComsolModel(mph.Model, Model, metaclass=ABCMeta):
     def __init__(self):
         super().__init__(None)
 
@@ -180,18 +164,14 @@ class ComsolModel(mph.Model, Model):
         studies = (self / 'studies').children()
         return -1 if not len(studies) else int(studies[-1].java.getLastComputationTime())
 
-    @abstractmethod
-    def results(self, *args: Any, **kwargs: Any) -> Any:
-        pass
-
     def configure(self) -> Any:
         pass
 
-    def pre_build(self, *args: Any, **kwargs: Any):
+    def pre_build(self, task: Task):
         pass
 
-    def pre_solve(self, *args: Any, **kwargs: Any):
+    def pre_solve(self, task: Task):
         pass
 
-    def pre_clear(self, *args: Any, **kwargs: Any):
+    def pre_clear(self, task: Task):
         pass

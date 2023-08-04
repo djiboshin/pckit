@@ -4,18 +4,18 @@ import pckit
 
 
 class MyModel(pckit.Model):
-    def results(self, n, *args, **kwargs):
+    def results(self, n: int):
         time.sleep(n)
         return 0
 
 
 if __name__ == '__main__':
-    tasks = [pckit.task.Task(1) for _ in range(10)]
+    tasks = [1 for _ in range(10)]
     # init the model
     model = MyModel()
 
     # -== Simple solver ==-
-    worker = pckit.SimpleWorker(model)
+    worker = pckit.Worker(model)
     # init the solver
     with pckit.get_solver(worker) as solver:
         # start solution with specified iterator
