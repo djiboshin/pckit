@@ -3,9 +3,10 @@ from mpi4py import MPI
 
 import pckit.task
 from test_solvers import basic_test_cache, basic_test_solve
+from test_fixtures import TestModel
 import sys
 
-worker = pckit.SimpleMPIWorker(model=pckit.TestModel())
+worker = pckit.MPIWorker(model=TestModel())
 
 if __name__ == '__main__':
     if len(sys.argv) == 2:
@@ -21,7 +22,7 @@ if __name__ == '__main__':
             # amount spawned
             assert comm.Get_size() - 1 == solver.total_workers
 
-            tasks = [pckit.task.Task(1), pckit.task.Task(0)]
+            tasks = [1, 0]
             res = solver.solve(tasks)
             # right results
             assert res[0] == 1 and res[1] == 0

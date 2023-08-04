@@ -1,10 +1,10 @@
 """
 This module is used by solvers and models mostly
 """
-from typing import Tuple, List, Sequence, Dict
+from typing import Tuple, List, Sequence, Dict, Hashable
 import numpy as np
-from .task import Task
-
+from ._typevars import Task, Result
+from .cache import BaseCache
 
 def make_unique(labels: Sequence) -> list:
     """Gets labels list and makes all labels unique by adding '(number of inclusion)' postfix
@@ -24,7 +24,7 @@ def make_unique(labels: Sequence) -> list:
     return new_labels
 
 
-def tasks_sort(tasks: Sequence[Task], cache: Dict) -> Tuple[List[int], List[int], List[int]]:
+def tasks_sort(tasks: Sequence[Task], cache: BaseCache[Task, Result]) -> Tuple[List[int], List[int], List[int]]:
     """Sorts the tasks list into:
         * those that need to be solved
         * those that are already in the cache
@@ -38,15 +38,15 @@ def tasks_sort(tasks: Sequence[Task], cache: Dict) -> Tuple[List[int], List[int]
     tag property even if caching is used on solver
     """
     to_solve, cached, same = [], [], []
-    to_solve_tags = []
+    to_solve_hash = []
     for i, task in enumerate(tasks):
-        if task.tag is None:
-            raise ValueError('If caching is True all the tasks must have a tag property')
-        if task.tag in cache:
+        if not isinstance(task, Hashable):
+            raise ValueError('If caching is True all the tasks must be hashable')
+        if hash(task) in cache:
             cached.append(i)
-        elif task.tag in to_solve_tags:
+        elif hash(task) in to_solve_hash:
             same.append(i)
         else:
             to_solve.append(i)
-            to_solve_tags.append(task.tag)
+            to_solve_hash.append(hash(task))
     return to_solve, cached, same

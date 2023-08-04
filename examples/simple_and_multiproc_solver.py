@@ -10,6 +10,7 @@ import logging
 gs = logging.getLogger('pckit.solver')
 gs.addHandler(logging.StreamHandler(sys.stdout))
 gs.setLevel(logging.INFO)
+
 gw = logging.getLogger('pckit.worker')
 gw.addHandler(logging.StreamHandler(sys.stdout))
 gw.setLevel(logging.DEBUG)
@@ -17,25 +18,25 @@ gw.setLevel(logging.DEBUG)
 
 # adding own Model subclass with results method will be called for each task by solver
 class MyModel(pckit.Model):
-    def results(self, n, *args, **kwargs):
+    def results(self, n: int) -> int:
         time.sleep(n)
         return 0
 
 
 if __name__ == '__main__':
-    tasks = [pckit.Task(1) for _ in range(10)]
+    tasks = [1 for _ in range(10)]
     # init the model
     model = MyModel()
 
     # -== Simple solver ==-
     # init the worker
-    worker = pckit.SimpleWorker(model)
+    worker = pckit.Worker(model)
     with pckit.get_solver(worker) as solver:
         results = solver.solve(tasks)
         print(f'Solution is ready, results: ', results)
 
     # -== Multiprocessing solver ==-
-    worker = pckit.SimpleMultiprocessingWorker(model)
+    worker = pckit.MultiprocessingWorker(model)
     # init the solver. Here we can choose how many workers will be spawned
     with pckit.get_solver(worker, workers_num=2) as solver:
         time.sleep(5)   # waiting for workers to start

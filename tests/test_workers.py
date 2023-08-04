@@ -3,25 +3,23 @@ import multiprocessing
 from multiprocessing import Queue, JoinableQueue
 
 import pckit.task
+from test_fixtures import model
 
 
-def test_simple_worker():
-    model = pckit.TestModel()
-    worker = pckit.SimpleWorker(model=model)
-    for t in [0, 1]:
-        task = pckit.task.Task(t)
-        assert worker.do_the_job(task.args, task.kwargs) == t
+def test_simple_worker(model):
+    worker = pckit.Worker(model=model)
+    for task in [0, 1]:
+        assert worker.do_the_job(task) == task
     try:
-        task = pckit.task.Task(2)
-        worker.do_the_job(task.args, task.kwargs)
+        task = 2
+        worker.do_the_job(task)
         assert True
     except Exception as e:
         assert isinstance(e, ValueError)
 
 
-def test_multiprocessing_worker():
-    model = pckit.TestModel()
-    worker = pckit.SimpleMultiprocessingWorker(model=model)
+def test_multiprocessing_worker(model):
+    worker = pckit.MultiprocessingWorker(model=model)
 
     jobs = JoinableQueue()
     results = Queue()
@@ -32,14 +30,13 @@ def test_multiprocessing_worker():
         daemon=True
     )
     process.start()
-    for t in [0, 1]:
-        task = pckit.task.Task(t)
-        jobs.put((1, task.args, task.kwargs))
+    for task in [0, 1]:
+        jobs.put((1, task))
         i, r = results.get(timeout=2)
-        assert r == t
-    task = pckit.task.Task(2)
+        assert r == task
+    task = 2
     try:
-        jobs.put((1, task.args, task.kwargs))
+        jobs.put((1, task))
         results.get(timeout=2)
     except Exception as e:
         assert isinstance(e, ValueError)

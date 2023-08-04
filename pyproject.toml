@@ -13,15 +13,16 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.8"
-numpy = "^1.22.3"
-pandas = "^1.4.2"
+python = "^3.9"
+numpy = "^1.25.2"
+pandas = "^2.0.3"
 MPh = "^1.1.5"
+pytest = "7.1.2"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.1.2"
 pylint = "^2.13.8"
-pytest-cov = "^3.0.0"
+pytest-cov = "^4.1.0"
 tqdm = "^4.64.0"
 mpi4py = "^3.1.3"
 
