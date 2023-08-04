@@ -13,18 +13,18 @@ import pckit
 
 
 class MyModel(pckit.Model):
-    def results(self, x):
+    def results(self, x: int) -> int:
         # Solve here problem f(x) = x^2
         return x ** 2
 
 
 if __name__ == '__main__':
     model = MyModel()
-    worker = pckit.SimpleMultiprocessingWorker(model)
+    worker = pckit.MultiprocessingWorker(model)
     with pckit.get_solver(worker, workers_num=2) as solver:
         # Create tasks to solve. You can put args or
         # kwargs for model.results() method in the Task
-        tasks = [pckit.Task(2), pckit.Task(x=3)]
+        tasks = [2, 3]
         results = solver.solve(tasks)
         print(results)
         # >>> [4, 9]
@@ -32,18 +32,18 @@ if __name__ == '__main__':
 
 ### MPI
 You can easily run scripts on the cluster with [mpi4py](https://github.com/mpi4py/mpi4py) implementation on MPI (See [mpi4py installation docs](https://mpi4py.readthedocs.io/en/stable/install.html)).
-Simply change `SimpleMultiprocessingWorker` to `SimpleMPIWorker` in the previous example and start the script with MPI `mpiexec -np 3 python -m mpi4py your_script.py`
+Simply change `MultiprocessingWorker` to `MPIWorker` in the previous example and start the script with MPI `mpiexec -np 3 python -m mpi4py your_script.py`
 
 ```python
-worker = pckit.SimpleMPIWorker(model)
+worker = pckit.MPIWorker(model)
 ```
 Moreover, a multiprocessing solver can be started inside an MPI solver.
 
 ### Single thread
-Single threaded execution is also available with `SimpleWorker`
+Single threaded execution is also available with `Worker`
 
 ```python
-worker = pckit.SimpleWorker(model)
+worker = pckit.Worker(model)
 ```
 
 ### Examples
@@ -52,11 +52,11 @@ worker = pckit.SimpleWorker(model)
 ## Features
 ### Cache
 Dict based cache is available by `caching` argument in `get_solver()`.
-`tag` property in `Task` is required and has to be hashable.
+Tasks are required to be hashable.
 
 ```python
 with pckit.get_solver(worker, caching=True) as solver:
-    tasks = [pckit.Task(2, tag='2'), pckit.Task(2, tag='2')]
+    tasks = [2, 2]
 ```
 The second task's solution will be reused from the cache.
 
