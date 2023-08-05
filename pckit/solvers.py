@@ -6,17 +6,17 @@ import sys
 from abc import ABC, abstractmethod
 
 from multiprocessing import Queue, JoinableQueue
-from typing import Any, Sequence, Union, List, Iterator, Callable, Iterable, Generic
+from typing import Any, Sequence, Union, List, Iterator, Callable, Iterable, Generic, Optional
 from ._typevars import Task, Result
 import time
 import logging
 
 from .workers import Worker, MultiprocessingWorker, MPIWorker
 from ._utils import tasks_sort
-from .cache import Cache, BaseCache
+from .cache import DictCache, BaseCache
 
-# TODO(add info to return after .solve())
-# TODO(add additional threads to control workers' errors)
+# TODO add info to return after .solve()
+# TODO add additional threads to control workers' errors(?)
 
 logger = logging.getLogger(__package__ + '.solver')
 
@@ -31,11 +31,17 @@ class Solver(ABC, Generic[Task, Result]):
     def __init__(
             self,
             worker: Worker[Task, Result],
-            caching: bool = False
+            caching: bool = False,
+            cache: Optional[BaseCache[Task, Result]] = None,
     ):
         self.worker = worker
         self.caching = caching
-        self.cache: BaseCache[Task, Result] = Cache()
+
+        if cache is None and caching:
+            self.cache = DictCache()
+        else:
+            self.cache = cache
+
         self.total_workers = 0
 
     def solve(self,
@@ -62,19 +68,32 @@ class Solver(ABC, Generic[Task, Result]):
         logger.info(message)
         start_time = time.time()
 
-        res = self._solve(tasks, to_solve, cached, same, iterator)
+        results = [None for _ in tasks]
+        task_to_solve = []
+        for i, task in enumerate(tasks):
+            if i in to_solve:
+                task_to_solve.append(task)
+
+        res = self._solve(tasks=task_to_solve, iterator=iterator)
+
+        for i, task, result in zip(to_solve, task_to_solve, res):
+            results[i] = result
+            if self.caching:
+                self.cache[task] = result
+
+        for i in same:
+            results[i] = self.cache[tasks[i]]
+        for i in cached:
+            results[i] = self.cache[tasks[i]]
 
         end_time = time.time()
         logger.info('All the tasks have been solved in %.2fs', end_time - start_time)
-        return res
+        return results
 
     @abstractmethod
     def _solve(
             self,
             tasks: Sequence[Task],
-            to_solve: List[int],
-            cached: List[int],
-            same: List[int],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Result]:
         pass
@@ -91,13 +110,14 @@ class MultiprocessingSolver(Solver):
     def __init__(self,
                  worker: MultiprocessingWorker,
                  workers_num: int = 1,
-                 caching: bool = False
+                 caching: bool = False,
+                 cache: Optional[BaseCache[Task, Result]] = None,
                  ):
 
         if not isinstance(worker, MultiprocessingWorker):
             raise TypeError('Worker has to be the object of type MultiprocessingWorker')
 
-        super().__init__(worker=worker, caching=caching)
+        super().__init__(worker=worker, caching=caching, cache=cache)
         self.worker = worker
 
         if workers_num <= 0:
@@ -121,30 +141,18 @@ class MultiprocessingSolver(Solver):
     def _solve(
             self,
             tasks: Sequence[Task],
-            to_solve: List[int],
-            cached: List[int],
-            same: List[int],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Result]:
         results = [None for _ in tasks]
+
         for i, task in enumerate(tasks):
-            if i in to_solve:
-                self._jobs.put((i, task))
-            elif i in cached:
-                results[i] = self.cache[task]
-            else:
-                results[i] = None
-        tasks_to_solve = [task for i, task in enumerate(tasks) if i in to_solve]
-        for _ in iterator(tasks_to_solve):
+            self._jobs.put((i, task))
+
+        for _ in iterator(tasks):
             (i, res) = self._results.get()
             if i == -1:
                 raise RuntimeError(res)
-            if self.caching:
-                self.cache[tasks[i]] = res
             results[i] = res
-
-        for i in same:
-            results[i] = self.cache[tasks[i]]
 
         return results
 
@@ -162,35 +170,29 @@ class MultiprocessingSolver(Solver):
 
 class SimpleSolver(Solver):
     """Simplest Solver implementation"""
-    def __init__(self, worker: Worker, caching: bool = False):
+    def __init__(
+            self,
+            worker: Worker,
+            caching: bool = False,
+            cache: Optional[BaseCache[Task, Result]] = None
+    ):
         if not isinstance(worker, Worker):
             raise TypeError('Worker has to be the object of type Worker')
-        super().__init__(worker=worker, caching=caching)
+        super().__init__(worker=worker, caching=caching, cache=cache)
         self.worker.start()
         self.total_workers = 1
 
     def _solve(
             self,
             tasks: Sequence[Task],
-            to_solve: List[int],
-            cached: List[int],
-            same: List[int],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Result]:
         results = [None for _ in tasks]
         for i, task in enumerate(iterator(tasks)):
-            if i in to_solve:
-                try:
-                    results[i] = self.worker.do_the_job(task)
-                    print(results[i])
-                except Exception as err:
-                    raise RuntimeError from err
-                if self.caching:
-                    self.cache[task] = results[i]
-            elif i in cached or i in same:
-                results[i] = self.cache[task] if task is not None else None
-            else:
-                results[i] = None
+            try:
+                results[i] = self.worker.do_the_job(task)
+            except Exception as err:
+                raise RuntimeError from err
         return results
 
 
@@ -200,6 +202,7 @@ class MPISolver(Solver):
             self,
             worker: MPIWorker,
             caching: bool = False,
+            cache: Optional[BaseCache[Task, Result]] = None,
             buffer_size: int = 32768
     ):
         from mpi4py import MPI
@@ -207,7 +210,7 @@ class MPISolver(Solver):
         if not isinstance(worker, MPIWorker):
             raise TypeError('Worker has to be the object of type MPIWorker')
 
-        super().__init__(worker=worker, caching=caching)
+        super().__init__(worker=worker, caching=caching, cache=cache)
         self.worker = worker
 
         self.buffer_size = buffer_size
@@ -230,31 +233,19 @@ class MPISolver(Solver):
     def _solve(
             self,
             tasks: Sequence[Task],
-            to_solve: List[int],
-            cached: List[int],
-            same: List[int],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> List[Any]:
         results = [None for _ in tasks]
         requests = []
-        tasks_to_solve = []
         for i, task in enumerate(tasks):
-            if i in to_solve:
-                dest = len(requests) % self.total_workers + 1
-                req = self.comm.isend((i, task), dest=dest, tag=i)
-                req.wait()
-                requests.append(self.comm.irecv(self.buffer_size, source=dest))
-                tasks_to_solve.append(task)
-            elif i in cached:
-                results[i] = self.cache[task]
-        for _ in iterator(tasks_to_solve):
-            (k, (i, res)) = self._MPI.Request.waitany(requests)
-            if self.caching:
-                self.cache[tasks[i]] = res
-            results[i] = res
+            dest = len(requests) % self.total_workers + 1
+            req = self.comm.isend((i, task), dest=dest, tag=i)
+            req.wait()
+            requests.append(self.comm.irecv(self.buffer_size, source=dest))
 
-        for i in same:
-            results[i] = self.cache[tasks[i]]
+        for _ in iterator(tasks):
+            (k, (i, res)) = self._MPI.Request.waitany(requests)
+            results[i] = res
 
         return results
 
@@ -273,6 +264,7 @@ class MPISolver(Solver):
 def get_solver(
         worker: Union[Worker, MPIWorker, MultiprocessingWorker],
         caching: bool = False,
+        cache: Optional[BaseCache[Task, Result]] = None,
         workers_num: int = 1,
         buffer_size: int = 2**15,
 ) -> Union[SimpleSolver, MPISolver, MultiprocessingSolver]:
@@ -280,14 +272,29 @@ def get_solver(
 
     :param worker: worker instance
     :param caching: is caching enabled
+    :param cache: BaseCache object
     :param workers_num: number of workers to spawn if worker is instance of MultiprocessingWorker
     :param buffer_size: buffer size for messages with results used by MPI
     :return: solver
     """
     if isinstance(worker, MultiprocessingWorker):
-        return MultiprocessingSolver(worker=worker, workers_num=workers_num, caching=caching)
+        return MultiprocessingSolver(
+            worker=worker,
+            workers_num=workers_num,
+            caching=caching,
+            cache=cache
+        )
     if isinstance(worker, MPIWorker):
-        return MPISolver(worker, caching, buffer_size)
+        return MPISolver(
+            worker=worker,
+            caching=caching,
+            cache=cache,
+            buffer_size=buffer_size
+        )
     if isinstance(worker, Worker):
-        return SimpleSolver(worker, caching)
+        return SimpleSolver(
+            worker=worker,
+            caching=caching,
+            cache=cache
+        )
     raise NotImplementedError(f'can\'t get Solver for {type(worker)} worker type')

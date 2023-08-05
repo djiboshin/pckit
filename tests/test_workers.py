@@ -13,7 +13,7 @@ def test_simple_worker(model):
     try:
         task = 2
         worker.do_the_job(task)
-        assert True
+        assert False
     except Exception as e:
         assert isinstance(e, ValueError)
 

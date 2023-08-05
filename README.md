@@ -22,8 +22,7 @@ if __name__ == '__main__':
     model = MyModel()
     worker = pckit.MultiprocessingWorker(model)
     with pckit.get_solver(worker, workers_num=2) as solver:
-        # Create tasks to solve. You can put args or
-        # kwargs for model.results() method in the Task
+        # Create tasks to solve
         tasks = [2, 3]
         results = solver.solve(tasks)
         print(results)
@@ -58,17 +57,18 @@ Tasks are required to be hashable.
 with pckit.get_solver(worker, caching=True) as solver:
     tasks = [2, 2]
 ```
+
 The second task's solution will be reused from the cache.
 
 ### Custom iterators
-You can send the email or print anything with custom iterator.
+You can send emails or print anything during evaluation with custom iterator.
 [tqdm](https://pypi.org/project/tqdm/) is also supported.
 ```python
 import tqdm
 
 results = solver.solve(tasks, iterator=tqdm.tqdm)
 ```
-See [example](https://github.com/djiboshin/pckit/blob/main/examples/custom_iterator.py) to create your own iterator.
+See [example](https://github.com/djiboshin/pckit/blob/main/examples/iterator_custom.py) to create your own iterator.
 
 ### Comsol Models, Solvers, Workers
 Based on [MPh](https://pypi.org/project/MPh/) package.

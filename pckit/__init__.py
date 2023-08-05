@@ -2,17 +2,12 @@
 A simple package for parallel computing with Python
 """
 from .models import (
-    Model,
-    ComsolModel
+    Model
 )
 from .workers import (
     Worker,
-    ComsolMultiprocessingWorker,
-    ComsolWorker,
-    Worker,
     MultiprocessingWorker,
     MPIWorker,
-    ComsolMPIWorker,
     MPIWorker
 )
 from .solvers import (
@@ -24,5 +19,5 @@ from .solvers import (
 )
 
 from .task import (
-    DataclassTask
+    Task
 )

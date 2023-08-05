@@ -1,3 +1,6 @@
+"""
+This module contains cache classes
+"""
 from abc import ABCMeta, abstractmethod
 from typing import Generic, Dict
 from ._typevars import Task, Result
@@ -46,17 +49,17 @@ class BaseCache(Generic[Task, Result], metaclass=ABCMeta):
         return None
 
 
-class Cache(BaseCache):
+class DictCache(BaseCache):
     """Simple cache based on dict."""
     def __init__(self):
-        self._cache: Dict[Task, Result] = {}
+        self._cache: Dict[Task, Result] = dict()
 
     def __getitem__(self, item: Task) -> Result:
-        return self._cache.get(hash(item))
+        return self._cache.get(item)
 
     def __setitem__(self, item: Task, value: Result):
-        self._cache[hash(item)] = value
+        self._cache[item] = value
 
     def __contains__(self, item: Task) -> bool:
-        return hash(item) in self._cache
+        return item in self._cache
 
