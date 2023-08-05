@@ -1,6 +1,6 @@
 from pathlib import Path
 import mph
-from model import ComsolModel
+from .model import ComsolModel
 
 from ..workers import Worker, MultiprocessingWorker, MPIWorker
 from .._typevars import Task, Result
