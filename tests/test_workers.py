@@ -48,6 +48,6 @@ def test_multiprocessing_worker(model):
     process.close()
 
 
-@pytest.skip
+@pytest.mark.skip
 def test_mpi_worker():
     pass

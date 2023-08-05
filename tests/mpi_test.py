@@ -1,14 +1,13 @@
-import pckit
-from mpi4py import MPI
-
 import pckit.task
-from test_solvers import test_cache, test_solve
 from test_fixtures import TestModel
 import sys
 
 worker = pckit.MPIWorker(model=TestModel())
 
 if __name__ == '__main__':
+    from mpi4py import MPI
+    from test_solvers import test_cache, test_solve
+
     if len(sys.argv) == 2:
         test_type = sys.argv[1]
         if test_type == 'basic_test_cache':
