@@ -1,3 +1,5 @@
+import pytest
+
 import pckit
 import multiprocessing
 from multiprocessing import Queue, JoinableQueue
@@ -46,5 +48,6 @@ def test_multiprocessing_worker(model):
     process.close()
 
 
+@pytest.skip
 def test_mpi_worker():
     pass

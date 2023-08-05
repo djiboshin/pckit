@@ -1,6 +1,6 @@
 import multiprocessing
 import os.path
-from typing import Sequence
+from typing import Sequence, Type
 
 import pckit
 import pytest
@@ -10,10 +10,12 @@ import sys
 import pckit.task
 from test_fixtures import model
 
+# TODO Turn on MPI tests
+
 
 def test_get_solver(model):
     """
-    Tests if the get_solver() function works properly
+    Tests if the get_solver() function works properly with Worker and MultiprocessingWorker
     """
     worker = pckit.Worker(model)
     assert isinstance(pckit.get_solver(worker), pckit.SimpleSolver)
@@ -21,13 +23,31 @@ def test_get_solver(model):
     worker = pckit.MultiprocessingWorker(model)
     assert isinstance(pckit.get_solver(worker), pckit.MultiprocessingSolver)
 
-    # worker = pckit.SimpleMPIWorker(pckit.TestModel())
-    # if importlib.util.find_spec('mpi4py') is not None:
-    #     assert isinstance(pckit.get_solver(worker), pckit.MPISolver)
-
 
 @pytest.mark.skip
-def basic_test_solve(worker: pckit.Worker):
+def test_get_solver_mpi(model):
+    """
+        Tests if the get_solver() function works properly with MPI worker
+    """
+    pytest.importorskip('mpi4py')
+    worker = pckit.MPIWorker(model)
+    assert isinstance(pckit.get_solver(worker), pckit.MPISolver)
+
+
+@pytest.fixture
+def worker(request, model):
+    worker_type: Type[pckit.Worker] = request.param
+    return worker_type(model=model)
+
+
+worker_types = [
+    pckit.Worker,
+    pckit.MultiprocessingWorker
+]
+
+
+@pytest.mark.parametrize('worker', worker_types, indirect=True)
+def test_solve(worker: pckit.Worker):
     # can solve a task
     with pckit.get_solver(worker=worker) as solver:
         tasks = [1, 0]
@@ -36,8 +56,8 @@ def basic_test_solve(worker: pckit.Worker):
         assert res[0] == 1 and res[1] == 0
 
 
-@pytest.mark.skip
-def basic_test_cache(worker: pckit.Worker):
+@pytest.mark.parametrize('worker', worker_types, indirect=True)
+def test_cache(worker: pckit.Worker):
     # can use cache
     with pckit.get_solver(worker=worker, caching=True) as solver:
         tasks = [
@@ -47,8 +67,8 @@ def basic_test_cache(worker: pckit.Worker):
         assert (1 in solver.cache) and (3 not in solver.cache)
 
 
-@pytest.mark.skip
-def basic_test_error(worker: pckit.Worker):
+@pytest.mark.parametrize('worker', worker_types, indirect=True)
+def test_error(worker: pckit.Worker):
     with pckit.get_solver(worker=worker) as solver:
         # can handle errors
         tasks = [-2]
@@ -68,8 +88,8 @@ def iterator(items: Sequence, iters):
         pass
 
 
-@pytest.mark.skip
-def basic_test_iterator(worker: pckit.Worker):
+@pytest.mark.parametrize('worker', worker_types, indirect=True)
+def test_iterator(worker: pckit.Worker):
     with pckit.get_solver(worker=worker) as solver:
         # can use iterator
         tasks = [
@@ -85,26 +105,17 @@ def basic_test_iterator(worker: pckit.Worker):
         solver.solve(tasks, iterator=lambda x: x)
 
 
-def test_basic_functions(model):
-    test_workers = [
-        pckit.Worker(model=model),
-        pckit.MultiprocessingWorker(model=model),
-    ]
-
-    for worker in test_workers:
-        basic_test_solve(worker)
-        basic_test_cache(worker)
-        basic_test_error(worker)
-        basic_test_iterator(worker)
-
-
 def test_simple_solver(model):
     """
         Tests if SimpleSolver() works properly
     """
 
     worker = pckit.Worker(model=model)
-    solver = pckit.SimpleSolver(worker=worker)
+    with pckit.SimpleSolver(worker=worker) as solver:
+        tasks = [1, 0]
+        res = solver.solve(tasks)
+        # right results
+        assert res[0] == 1 and res[1] == 0
 
 
 def test_multiprocessing_solver(model):
