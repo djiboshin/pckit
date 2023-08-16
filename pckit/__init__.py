@@ -21,3 +21,8 @@ from .solvers import (
 from .task import (
     Task
 )
+
+from .cache import (
+    BaseCache,
+    DictCache
+)
