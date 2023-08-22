@@ -6,7 +6,7 @@ import sys
 from abc import ABC, abstractmethod
 
 from multiprocessing import Queue, JoinableQueue
-from typing import Any, Sequence, Union, List, Iterator, Callable, Iterable, Generic, Optional
+from typing import Any, Sequence, Union, List, Iterator, Callable, Iterable, Generic, Optional, Generator
 from ._typevars import Task, Result
 import time
 import logging
@@ -74,10 +74,9 @@ class Solver(ABC, Generic[Task, Result]):
             if i in to_solve:
                 task_to_solve.append(task)
 
-        res = self._solve(tasks=task_to_solve, iterator=iterator)
-
-        for i, task, result in zip(to_solve, task_to_solve, res):
+        for i, result in self._solve(tasks=task_to_solve, iterator=iterator):
             results[i] = result
+            task = tasks[i]
             if self.caching:
                 self.cache[task] = result
 
@@ -95,7 +94,8 @@ class Solver(ABC, Generic[Task, Result]):
             self,
             tasks: Sequence[Task],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
-    ) -> List[Result]:
+    ) -> Generator[tuple[int, Result], None, None]:
+        """Inner solve function"""
         pass
 
     def __enter__(self):
@@ -142,9 +142,7 @@ class MultiprocessingSolver(Solver):
             self,
             tasks: Sequence[Task],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
-    ) -> List[Result]:
-        results = [None for _ in tasks]
-
+    ) -> Generator[tuple[int, Result], None, None]:
         for i, task in enumerate(tasks):
             self._jobs.put((i, task))
 
@@ -152,9 +150,7 @@ class MultiprocessingSolver(Solver):
             (i, res) = self._results.get()
             if i == -1:
                 raise RuntimeError(res)
-            results[i] = res
-
-        return results
+            yield i, res
 
     def _stop(self):
         for worker in self.workers:
@@ -186,14 +182,12 @@ class SimpleSolver(Solver):
             self,
             tasks: Sequence[Task],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
-    ) -> List[Result]:
-        results = [None for _ in tasks]
+    ) -> Generator[tuple[int, Result], None, None]:
         for i, task in enumerate(iterator(tasks)):
             try:
-                results[i] = self.worker.do_the_job(task)
+                yield i, self.worker.do_the_job(task)
             except Exception as err:
                 raise RuntimeError from err
-        return results
 
 
 class MPISolver(Solver):
@@ -234,8 +228,7 @@ class MPISolver(Solver):
             self,
             tasks: Sequence[Task],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
-    ) -> List[Any]:
-        results = [None for _ in tasks]
+    ) -> Generator[tuple[int, Result], None, None]:
         requests = []
         for i, task in enumerate(tasks):
             dest = len(requests) % self.total_workers + 1
@@ -245,9 +238,7 @@ class MPISolver(Solver):
 
         for _ in iterator(tasks):
             (k, (i, res)) = self._MPI.Request.waitany(requests)
-            results[i] = res
-
-        return results
+            yield i, res
 
     def _stop(self):
         for i in range(1, self.comm.Get_size()):
