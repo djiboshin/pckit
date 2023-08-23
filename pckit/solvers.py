@@ -54,36 +54,36 @@ class Solver(ABC, Generic[Task, Result]):
         :param iterator: function which wraps iterable tasks list and return iterator
         :return: list of results
         """
-        if self.caching:
-            to_solve, cached, same = tasks_sort(tasks, self.cache)
-        else:
-            to_solve, cached, same = range(len(tasks)), [], []
-
-        message = f'Starting to solve {len(tasks)} tasks with {self.total_workers} workers'
-        if self.caching:
-            message += f':\n\t{len(cached)} solutions will be reused\n' \
-                       f'\t{len(same)} tasks are the same'
-        else:
-            message += ' (caching is off)'
-        logger.info(message)
-        start_time = time.time()
-
         results = [None for _ in tasks]
-        task_to_solve = []
-        for i, task in enumerate(tasks):
-            if i in to_solve:
-                task_to_solve.append(task)
+        message = f'Starting to solve {len(tasks)} tasks with {self.total_workers} workers'
+        if not self.caching:
+            message += ' (caching is off)'
+            logger.info(message)
+            start_time = time.time()
 
-        for i, result in self._solve(tasks=task_to_solve, iterator=iterator):
-            results[i] = result
-            task = tasks[i]
-            if self.caching:
-                self.cache[task] = result
+            results = [None for _ in tasks]
+            for i, result in self._solve(tasks=tasks, iterator=iterator):
+                results[i] = result
+        else:
+            with self.cache:
+                to_solve, cached, same = tasks_sort(tasks, self.cache)
+                message += f':\n\t{len(cached)} solutions will be reused\n' \
+                           f'\t{len(same)} tasks are the same'
+                logger.info(message)
+                start_time = time.time()
 
-        for i in same:
-            results[i] = self.cache[tasks[i]]
-        for i in cached:
-            results[i] = self.cache[tasks[i]]
+                task_to_solve = [tasks[i] for i in to_solve]
+                for i, result in self._solve(tasks=task_to_solve, iterator=iterator):
+                    task = tasks[i]
+                    results[i] = result
+                    self.cache[task] = result
+
+                for i in same:
+                    task = tasks[i]
+                    results[i] = self.cache[task]
+                for i in cached:
+                    task = tasks[i]
+                    results[i] = self.cache[task]
 
         end_time = time.time()
         logger.info('All the tasks have been solved in %.2fs', end_time - start_time)
