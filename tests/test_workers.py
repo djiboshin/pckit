@@ -20,12 +20,12 @@ def test_simple_worker(model):
         assert isinstance(e, ValueError)
 
 
-# def test_multiprocessing_worker(model):
-#     worker = pckit.MultiprocessingWorker(model=model)
-#
-#     jobs = JoinableQueue()
-#     results = Queue()
-#
+def test_multiprocessing_worker(model):
+    worker = pckit.MultiprocessingWorker(model=model)
+
+    jobs = JoinableQueue()
+    results = Queue()
+
 #     process = multiprocessing.Process(
 #         target=worker.start_loop,
 #         args=(jobs, results),
