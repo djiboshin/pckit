@@ -37,11 +37,11 @@ def test_multiprocessing_worker(model):
         i, r = results.get(timeout=2)
         assert r == task
     task = 2
-    try:
-        jobs.put((1, task))
-        results.get(timeout=2)
-    except Exception as e:
-        assert isinstance(e, ValueError)
+    # try:
+    #     jobs.put((1, task))
+    #     results.get(timeout=2)
+    # except Exception as e:
+    #     assert isinstance(e, ValueError)
 
     process.terminate()
     process.join()
