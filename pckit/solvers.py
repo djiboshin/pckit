@@ -2,14 +2,22 @@
 This module contains different Solvers
 """
 import multiprocessing
+import queue
 import sys
 from abc import ABC, abstractmethod
 
 from multiprocessing import Queue, JoinableQueue
+import threading
 from typing import Sequence, Union, List, Iterator, Callable, Iterable, Generic, Optional, Generator, Tuple, Hashable
 from ._typevars import Task, Result
+from ._mpi_check import mpi_function
 import time
 import logging
+
+try:
+    from mpi4py import MPI
+except ModuleNotFoundError:
+    pass
 
 from .workers import Worker, MultiprocessingWorker, MPIWorker
 from .cache import DictCache, BaseCache
@@ -212,22 +220,22 @@ class SimpleSolver(Solver):
     ) -> Generator[tuple[int, Result], None, None]:
         for i, task in enumerate(iterator(tasks)):
             try:
-                yield i, self.worker.do_the_job(task)
+                yield i, self.worker.do_the_job(task, task_id=i)
             except Exception as err:
                 raise RuntimeError from err
 
 
 class MPISolver(Solver):
     """MPI Solver implementation"""
+    @mpi_function
     def __init__(
             self,
             worker: MPIWorker,
             caching: bool = False,
             cache: Optional[BaseCache[Task, Result]] = None,
-            buffer_size: int = 32768
+            buffer_size: int = 32768,
+            zero_rank_usage: bool = True
     ):
-        from mpi4py import MPI
-
         if not isinstance(worker, MPIWorker):
             raise TypeError('Worker has to be the object of type MPIWorker')
 
@@ -238,14 +246,27 @@ class MPISolver(Solver):
         self.comm = MPI.COMM_WORLD
         self._MPI = MPI
         self.rank = self.comm.Get_rank()
-        self.total_workers = self.comm.Get_size() - 1
+
+        self.zero_rank_usage = zero_rank_usage
+        if zero_rank_usage:
+            self.total_workers = self.comm.Get_size()
+        else:
+            self.total_workers = self.comm.Get_size() - 1
 
         if self.rank != 0:
-            logger.debug('Starting loop in worker with rank %i', self.comm.Get_rank())
+            logger.debug('Starting loop in worker with rank %i', self.rank)
             self.worker.start_loop(self.comm)
-            # self.start_listening()
             MPI.Finalize()
             sys.exit()
+        elif zero_rank_usage:
+            logger.debug('Starting worker in rank %i', self.rank)
+            self.jobs = queue.Queue()
+            self.thread = threading.Thread(
+                target=self.worker.start_threading_loop,
+                args=(self.comm, self.jobs),
+                daemon=True
+            )
+            self.thread.start()
 
         if self.total_workers < 1:
             raise RuntimeError('Not enough processes! '
@@ -258,9 +279,17 @@ class MPISolver(Solver):
     ) -> Generator[tuple[int, Result], None, None]:
         requests = []
         for i, task in enumerate(tasks):
-            dest = i % self.total_workers + 1
-            req = self.comm.isend((i, task), dest=dest, tag=i)
-            req.wait()
+            dest = i % self.total_workers
+            # do not send a task to zero rank worker
+            if not self.zero_rank_usage:
+                dest += 1
+
+            if dest != 0:
+                req = self.comm.isend((i, task), dest=dest, tag=i)
+                req.wait()
+            else:
+                self.jobs.put((i, task))
+
             requests.append(self.comm.irecv(self.buffer_size, source=dest))
 
         for _ in iterator(tasks):
@@ -271,6 +300,9 @@ class MPISolver(Solver):
         for i in range(1, self.comm.Get_size()):
             req = self.comm.isend((None, None), dest=i)
             req.wait()
+        if self.zero_rank_usage:
+            self.jobs.put((None, None))
+            self.thread.join()
 
     def __enter__(self):
         return self
@@ -285,6 +317,7 @@ def get_solver(
         cache: Optional[BaseCache[Task, Result]] = None,
         workers_num: int = 1,
         buffer_size: int = 2**15,
+        zero_rank_usage: bool = True
 ) -> Union[SimpleSolver, MPISolver, MultiprocessingSolver]:
     """Automatically choose solver based on worker type.
 
@@ -293,6 +326,7 @@ def get_solver(
     :param cache: BaseCache object
     :param workers_num: number of workers to spawn if worker is instance of MultiprocessingWorker
     :param buffer_size: buffer size for messages with results used by MPI
+    :param zero_rank_usage: start MPIWorker in zero rank process
     :return: solver
     """
     if isinstance(worker, MultiprocessingWorker):
