@@ -46,6 +46,5 @@ def test_multiprocessing_worker(model):
 #
     jobs.put((None, None))
     if process.is_alive():
-        process.terminate()
-        process.join()
+        process.join(timeout=2)
         process.close()
