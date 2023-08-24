@@ -26,12 +26,12 @@ def test_multiprocessing_worker(model):
     jobs = JoinableQueue()
     results = Queue()
 
-#     process = multiprocessing.Process(
-#         target=worker.start_loop,
-#         args=(jobs, results),
-#         daemon=True
-#     )
-#     process.start()
+    process = multiprocessing.Process(
+        target=worker.start_loop,
+        args=(jobs, results),
+        daemon=True
+    )
+    process.start()
 #     for task in [0, 1]:
 #         jobs.put((1, task))
 #         i, r = results.get(timeout=2)
@@ -43,7 +43,7 @@ def test_multiprocessing_worker(model):
 #     except Exception as e:
 #         assert isinstance(e, ValueError)
 #
-#     if process.is_alive():
-#         process.terminate()
-#         process.join()
-#         process.close()
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        process.close()
