@@ -1,13 +1,13 @@
 """
 This module contains different Models
 """
-from abc import abstractmethod
+from abc import abstractmethod, ABCMeta
 from typing import Generic
 
 from ._typevars import Task, Result
 
 
-class Model(Generic[Task, Result]):
+class Model(Generic[Task, Result], metaclass=ABCMeta):
     """
     The Model abstract base class.
     """
