@@ -46,8 +46,3 @@ def test_multiprocessing_worker(model):
     process.terminate()
     process.join()
     process.close()
-
-
-@pytest.mark.skip
-def test_mpi_worker():
-    pass
