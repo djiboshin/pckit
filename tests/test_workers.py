@@ -26,6 +26,7 @@ def test_multiprocessing_worker(model):
     jobs = JoinableQueue()
     results = Queue()
 
+    multiprocessing.set_start_method("spawn", force=True)
     process = multiprocessing.Process(
         target=worker.start_loop,
         args=(jobs, results),
