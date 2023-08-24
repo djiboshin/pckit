@@ -1,17 +1,20 @@
 """
 This module contains different Workers
 """
-import multiprocessing
 from multiprocessing import JoinableQueue, Queue
-import socket
 import logging
-from typing import Generic
+from typing import Generic, NamedTuple
 
 from .models import Model
 from .task import Task as OldTask
 from ._typevars import Task, Result
 
 logger = logging.getLogger(__package__ + '.worker')
+
+
+class NumberedTask(NamedTuple):
+    id: int
+    task: Task
 
 
 class Worker(Generic[Task, Result]):
@@ -31,6 +34,7 @@ class Worker(Generic[Task, Result]):
 
         :return:
         """
+        logger.debug('Starting the worker')
 
     def do_the_job(self, task: Task) -> Result:
         """
@@ -53,25 +57,20 @@ class MultiprocessingWorker(Worker):
         :param JoinableQueue jobs: Queue for jobs
         :param Queue results: Queue for results
         """
-        logger.info('%s %s Starting',
-                    multiprocessing.current_process().name,
-                    socket.gethostname())
         self.start()
         self._loop(jobs, results)
 
+    def do_the_job(self, numbered_task: NumberedTask) -> Result:
+        logger.debug('Starting doing the job %i', numbered_task.id)
+        return super(MultiprocessingWorker, self).do_the_job(numbered_task.task)
+
     def _loop(self, jobs: JoinableQueue, results: Queue):
-        logger.info('%s %s Entering the loop',
-                    multiprocessing.current_process().name,
-                    socket.gethostname())
+        logger.info('Entering the loop')
         while True:
-            (i, task) = jobs.get()
-            logger.debug('%s %s Starting doing the job %i',
-                         multiprocessing.current_process().name,
-                         socket.gethostname(),
-                         i)
+            numbered_task = NumberedTask(*jobs.get())
             try:
-                res = self.do_the_job(task)
-                results.put((i, res))
+                res = self.do_the_job(numbered_task)
+                results.put((numbered_task.id, res))
                 jobs.task_done()
             except Exception as err:
                 results.put((-1, err))
@@ -88,25 +87,20 @@ class MPIWorker(Worker):
         import mpi4py
         if not isinstance(comm, mpi4py.MPI.Intracomm):
             raise TypeError('comm has to be instance of mpi4py.MPI.Intracomm')
-        logger.info('Rang %i %s Starting',
-                    comm.Get_rank(),
-                    socket.gethostname())
         self.start()
         self._loop(comm)
 
+    def do_the_job(self, numbered_task: NumberedTask) -> Result:
+        logger.debug('Starting doing the job %i', numbered_task.id)
+        return super(MPIWorker, self).do_the_job(numbered_task.task)
+
     def _loop(self, comm):
-        logger.info('Rang %i %s Entering the loop',
-                    comm.Get_rank(),
-                    socket.gethostname())
+        logger.info('Entering the loop')
         while True:
             req = comm.irecv(source=0)
-            (i, task) = req.wait()
-            if i is None and task is None:
+            numbered_task = NumberedTask(*req.wait())
+            if numbered_task.id is None and numbered_task.task is None:
                 return
-            logger.debug('Rang %i %s Starting doing the job %i',
-                         comm.Get_rank(),
-                         socket.gethostname(),
-                         i)
-            res = self.do_the_job(task)
-            req = comm.isend((i, res), dest=0)
+            res = self.do_the_job(numbered_task)
+            req = comm.isend((numbered_task.id, res), dest=0)
             req.wait()
