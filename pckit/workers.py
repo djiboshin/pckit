@@ -84,10 +84,10 @@ class MultiprocessingWorker(Worker):
     ):
         logger.info('Entering the loop')
         while True:
-            numbered_task = NumberedTask(*jobs.get())
+            (i, task) = jobs.get()
             try:
-                res = self.do_the_job(task=numbered_task.task, task_id=numbered_task.id)
-                results.put((numbered_task.id, res))
+                res = self.do_the_job(task=task, task_id=i)
+                results.put((i, res))
                 jobs.task_done()
             except Exception as err:
                 results.put((-1, err))
