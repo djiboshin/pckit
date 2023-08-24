@@ -43,6 +43,7 @@ def test_multiprocessing_worker(model):
     # except Exception as e:
     #     assert isinstance(e, ValueError)
 
-    process.terminate()
-    process.join()
-    process.close()
+    if process.is_alive():
+        process.terminate()
+        process.join()
+        process.close()
