@@ -22,7 +22,7 @@ class MyModel(pckit.Model):
 
 
 # To start, use
-#   mpiexec -np 3 python -m mpi4py mpi_solver.py
+#   mpiexec -np 2 python -m mpi4py mpi_solver.py
 
 # The __name__ condition is not really needed since all
 # spawned processes will be spawned as main.
@@ -33,7 +33,6 @@ if __name__ == '__main__':
 
     # -== MPI solver ==-
     worker = pckit.MPIWorker(model)
-    b = worker.do_the_job(1)
 
     # init the solver
     with pckit.get_solver(worker) as solver:
