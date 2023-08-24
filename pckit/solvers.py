@@ -341,8 +341,7 @@ def get_solver(
             worker=worker,
             caching=caching,
             cache=cache,
-            buffer_size=buffer_size,
-            zero_rank_usage=zero_rank_usage
+            buffer_size=buffer_size
         )
     if isinstance(worker, Worker):
         return SimpleSolver(

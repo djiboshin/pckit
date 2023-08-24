@@ -6,7 +6,7 @@ worker = pckit.MPIWorker(model=TestModel())
 
 if __name__ == '__main__':
     from mpi4py import MPI
-    from _test_solvers import test_cache, test_solve
+    from test_solvers import test_cache, test_solve
 
     if len(sys.argv) == 2:
         test_type = sys.argv[1]
