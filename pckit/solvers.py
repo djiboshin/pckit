@@ -188,6 +188,8 @@ class MultiprocessingSolver(Solver):
             yield i, res
 
     def _stop(self):
+        for i in range(self.total_workers):
+            self._jobs.put((None, None))
         for worker in self.workers:
             if worker.is_alive():
                 worker.terminate()
