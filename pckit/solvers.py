@@ -183,7 +183,7 @@ class MultiprocessingSolver(Solver):
                 raise RuntimeError(res)
             yield i, res
 
-    def _stop(self):
+    def _stop_workers(self):
         for i in range(self.total_workers):
             self._jobs.put((None, None))
         for worker in self.workers:
@@ -192,7 +192,11 @@ class MultiprocessingSolver(Solver):
                 worker.join()
                 worker.close()
 
+    def _stop(self):
+        pass
+
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._stop_workers()
         self._stop()
         return False
 
@@ -255,10 +259,9 @@ class MPISolver(Solver):
         if self.rank != 0:
             logger.debug('Starting loop in worker with rank %i', self.rank)
             self.worker.start_loop(self.comm)
-            MPI.Finalize()
-            sys.exit()
+            self._stop()
         elif zero_rank_usage:
-            logger.debug('Starting worker in rank %i', self.rank)
+            logger.debug('Starting loop in worker with rank %i (zero_rank_usage is True)', self.rank)
             self.jobs = queue.Queue()
             self.thread = threading.Thread(
                 target=self.worker.start_threading_loop,
@@ -268,8 +271,8 @@ class MPISolver(Solver):
             self.thread.start()
 
         if self.total_workers < 1:
-            raise RuntimeError('Not enough processes! '
-                               f'Need at least 2, detected {self.total_workers}.')
+            raise RuntimeError('Not enough workers! '
+                               f'Need at least 1, detected {self.total_workers}.')
 
     def _solve(
             self,
@@ -295,19 +298,29 @@ class MPISolver(Solver):
             (k, (i, res)) = self._MPI.Request.waitany(requests)
             yield i, res
 
+    def _stop_workers(self):
+        if self.rank == 0:
+            for i in range(1, self.comm.Get_size()):
+                req = self.comm.isend((None, None), dest=i)
+                req.wait()
+            if self.zero_rank_usage:
+                self.jobs.put((None, None))
+                if self.thread.is_alive():
+                    self.thread.join()
+
     def _stop(self):
-        for i in range(1, self.comm.Get_size()):
-            req = self.comm.isend((None, None), dest=i)
-            req.wait()
-        if self.zero_rank_usage:
-            self.jobs.put((None, None))
-            self.thread.join()
+        # shutdown logging will cause `MPIFileHandler` to be closed
+        logging.shutdown()
+        self._MPI.Finalize()
+        sys.exit()
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self._stop_workers()
         self._stop()
+        return False
 
 
 def get_solver(
