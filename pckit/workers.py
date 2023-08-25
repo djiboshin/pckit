@@ -11,11 +11,6 @@ from .task import Task as OldTask
 from ._typevars import Task, Result
 from ._mpi_check import mpi_function
 
-try:
-    from mpi4py import MPI
-except ModuleNotFoundError:
-    pass
-
 logger = logging.getLogger(__package__ + '.worker')
 
 
@@ -108,12 +103,14 @@ class MPIWorker(Worker):
 
         :param comm: Intracomm, COMM_WORLD commonly
         """
+        from mpi4py import MPI
         if not isinstance(comm, MPI.Intracomm):
             raise TypeError('comm has to be instance of mpi4py.MPI.Intracomm')
         self.start()
         self._loop(comm)
 
     def start_threading_loop(self, comm, jobs: queue.Queue):
+        from mpi4py import MPI
         if not isinstance(comm, MPI.Intracomm):
             raise TypeError('comm has to be instance of mpi4py.MPI.Intracomm')
         self.start()

@@ -1,5 +1,5 @@
 try:
-    from mpi4py import MPI
+    import mpi4py
     is_mpi = True
 except ModuleNotFoundError:
     is_mpi = False
