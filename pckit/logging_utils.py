@@ -6,16 +6,12 @@ import multiprocessing
 import socket
 from ._mpi_check import mpi_function
 
-try:
-    from mpi4py import MPI
-except ModuleNotFoundError:
-    pass
-
 
 class MPIFileStream:
     """File stream. See https://gist.github.com/sixy6e/ed35ea88ba0627e0f7dfdf115a3bf4d1"""
     @mpi_function
     def __init__(self, filename, amode: int, comm: 'MPI.Intracomm', encoding: str = 'utf-8'):
+        from mpi4py import MPI
         self.file = MPI.File.Open(comm=comm, filename=filename, amode=amode)
         self.file.Set_atomicity(flag=True)
         self.encoding = encoding
@@ -42,6 +38,7 @@ class MPIFileHandler(logging.FileHandler):
             encoding: str = None,
             delay=False
     ):
+        from mpi4py import MPI
         self.amode = amode if amode is not None else MPI.MODE_WRONLY | MPI.MODE_CREATE
         self.comm = comm if comm is not None else MPI.COMM_WORLD
         super(MPIFileHandler, self).__init__(filename=filename, delay=delay, encoding=encoding)
@@ -60,6 +57,7 @@ class MPIRecordFactory:
     """Class for logging with rank and hostname in format"""
     @mpi_function
     def __init__(self, comm: 'MPI.Intracomm' = None) -> None:
+        from mpi4py import MPI
         self.default_factory = logging.getLogRecordFactory()
         self.rank = MPI.COMM_WORLD.Get_rank() if comm is None else comm
         self.hostname = socket.gethostname()
