@@ -3,15 +3,17 @@ import pckit
 import time
 
 # adding logging for solver and workers
-# Be careful with multiprocessing and file logging handler at the same time
+# Be careful with mpi and file logging handler at the same time
+# You can use MPIFileHandler to avoid problems. See the logging_mpi.py example
 import logging
 
 gs = logging.getLogger('pckit.solver')
 gs.addHandler(logging.StreamHandler(sys.stdout))
-gs.setLevel(logging.INFO)
+gs.setLevel(logging.DEBUG)
+
 gw = logging.getLogger('pckit.worker')
 gw.addHandler(logging.StreamHandler(sys.stdout))
-gw.setLevel(logging.DEBUG)
+gw.setLevel(logging.INFO)
 
 
 # adding own Model subclass with results method will be called for each task by solver
@@ -21,8 +23,10 @@ class MyModel(pckit.Model):
         return 0
 
 
-# To start, use
-#   mpiexec -np 2 python -m mpi4py mpi_solver.py
+# To start with <n> workers, use
+#   mpiexec -np <n> python -m mpi4py solver_mpi.py
+# By default a single worker in zero rank process will be used
+# This behavior can be controlled by `zero_rank_usage` argument in `get_solver` function
 
 # The __name__ condition is not really needed since all
 # spawned processes will be spawned as main.

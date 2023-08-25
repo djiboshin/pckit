@@ -6,14 +6,13 @@ import time
 # Be careful with multiprocessing and file logging handler at the same time
 import logging
 
-
 gs = logging.getLogger('pckit.solver')
 gs.addHandler(logging.StreamHandler(sys.stdout))
-gs.setLevel(logging.INFO)
+gs.setLevel(logging.DEBUG)
 
 gw = logging.getLogger('pckit.worker')
 gw.addHandler(logging.StreamHandler(sys.stdout))
-gw.setLevel(logging.DEBUG)
+gw.setLevel(logging.INFO)
 
 
 # adding own Model subclass with results method will be called for each task by solver
