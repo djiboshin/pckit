@@ -82,14 +82,14 @@ class MultiprocessingWorker(Worker):
             numbered_task = NumberedTask(*jobs.get())
             if numbered_task.id is None and numbered_task.task is None:
                 jobs.task_done()
-                return
+                break
             try:
                 res = self.do_the_job(task=numbered_task.task, task_id=numbered_task.id)
                 results.put((numbered_task.id, res))
                 jobs.task_done()
             except Exception as err:
                 results.put((-1, err))
-                raise err
+                break
 
 
 class MPIWorker(Worker):
@@ -130,7 +130,7 @@ class MPIWorker(Worker):
         while True:
             numbered_task = NumberedTask(*jobs.get())
             if numbered_task.id is None and numbered_task.task is None:
-                return
+                break
             self._do_the_job_and_send(
                 comm=comm,
                 numbered_task=numbered_task
@@ -143,7 +143,7 @@ class MPIWorker(Worker):
             req = comm.irecv(source=0)
             numbered_task = NumberedTask(*req.wait())
             if numbered_task.id is None and numbered_task.task is None:
-                return
+                break
             self._do_the_job_and_send(
                 comm=comm,
                 numbered_task=numbered_task
