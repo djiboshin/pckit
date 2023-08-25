@@ -14,10 +14,6 @@ from ._mpi_check import mpi_function
 import time
 import logging
 
-try:
-    from mpi4py import MPI
-except ModuleNotFoundError:
-    pass
 
 from .workers import Worker, MultiprocessingWorker, MPIWorker
 from .cache import DictCache, BaseCache
@@ -245,6 +241,7 @@ class MPISolver(Solver):
         self.worker = worker
 
         self.buffer_size = buffer_size
+        from mpi4py import MPI
         self.comm = MPI.COMM_WORLD
         self._MPI = MPI
         self.rank = self.comm.Get_rank()
