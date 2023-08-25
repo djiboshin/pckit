@@ -78,7 +78,6 @@ def test_error(worker: pckit.Worker):
             assert isinstance(e, RuntimeError)
 
 
-@pytest.mark.skip
 def iterator(items: Sequence, iters):
     try:
         for item in items:
