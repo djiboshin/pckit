@@ -5,6 +5,10 @@ import logging
 import multiprocessing
 import socket
 from ._mpi_check import mpi_function
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from mpi4py import MPI
 
 
 class MPIFileStream:
@@ -39,7 +43,7 @@ class MPIFileHandler(logging.FileHandler):
             delay=False
     ):
         from mpi4py import MPI
-        self.amode = amode if amode is not None else MPI.MODE_WRONLY | MPI.MODE_CREATE
+        self.amode = amode if amode is not None else MPI.MODE_WRONLY | MPI.MODE_CREATE | MPI.MODE_APPEND
         self.comm = comm if comm is not None else MPI.COMM_WORLD
         super(MPIFileHandler, self).__init__(filename=filename, delay=delay, encoding=encoding)
 
