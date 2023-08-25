@@ -26,24 +26,23 @@ def test_multiprocessing_worker(model):
     jobs = JoinableQueue()
     results = Queue()
 
-    # multiprocessing.set_start_method("spawn", force=True)
     process = multiprocessing.Process(
         target=worker.start_loop,
         args=(jobs, results),
         daemon=True
     )
     process.start()
-#     for task in [0, 1]:
-#         jobs.put((1, task))
-#         i, r = results.get(timeout=2)
-#         assert r == task
-#     task = 2
-#     try:
-#         jobs.put((1, task))
-#         results.get(timeout=2)
-#     except Exception as e:
-#         assert isinstance(e, ValueError)
-#
+    for task in [0, 1]:
+        jobs.put((1, task))
+        i, r = results.get(timeout=2)
+        assert r == task
+    task = 2
+    try:
+        jobs.put((1, task))
+        results.get(timeout=2)
+    except Exception as e:
+        assert isinstance(e, ValueError)
+
     jobs.put((None, None))
     if process.is_alive():
         process.join(timeout=2)

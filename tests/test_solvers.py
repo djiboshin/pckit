@@ -128,9 +128,11 @@ def test_multiprocessing_solver(model):
     n = 4
     with pckit.MultiprocessingSolver(worker=worker, workers_num=n) as solver:
         # spawned Process
-        assert not any(not isinstance(x, multiprocessing.context.Process) for x in solver.workers)
+        for x in solver.workers:
+            assert isinstance(x, multiprocessing.context.Process)
         # spawned alive
-        assert not any(not x.is_alive() for x in solver.workers)
+        for x in solver.workers:
+            assert x.is_alive()
         # amount spawned
         assert len(solver.workers) == n == solver.total_workers
 

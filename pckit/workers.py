@@ -36,7 +36,7 @@ class Worker(Generic[Task, Result]):
 
         :return:
         """
-        # logger.debug('Starting the worker')
+        logger.debug('Starting the worker')
 
     def do_the_job(self, task: Task, task_id: int = None) -> Result:
         """
