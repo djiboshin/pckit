@@ -42,10 +42,10 @@ def tasks_sort(tasks: Sequence[Task], cache: BaseCache[Task, Result]) -> Tuple[L
     for i, task in enumerate(tasks):
         if not isinstance(task, Hashable):
             raise ValueError('If caching is True all the tasks must be hashable')
-        if task in cache:
-            cached.append(i)
-        elif task in to_solve_hash:
+        if task in to_solve_hash:
             same.append(i)
+        elif task in cache:
+            cached.append(i)
         else:
             to_solve.append(i)
             to_solve_hash.append(task)
@@ -104,7 +104,8 @@ class Solver(ABC, Generic[Task, Result]):
                 start_time = time.time()
 
                 task_to_solve = [tasks[i] for i in to_solve]
-                for i, result in self._solve(tasks=task_to_solve, iterator=iterator):
+                for j, result in self._solve(tasks=task_to_solve, iterator=iterator):
+                    i = to_solve[j]
                     task = tasks[i]
                     results[i] = result
                     self.cache[task] = result

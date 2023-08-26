@@ -61,7 +61,7 @@ class DictCache(BaseCache):
         self._cache: Dict[Task, Result] = dict()
 
     def __getitem__(self, item: Task) -> Result:
-        return self._cache.get(item)
+        return self._cache[item]
 
     def __setitem__(self, item: Task, value: Result):
         self._cache[item] = value

@@ -66,6 +66,15 @@ def test_cache(worker: pckit.Worker):
         solver.solve(tasks)
         assert (1 in solver.cache) and (3 not in solver.cache)
 
+    # cache is working
+    with pckit.get_solver(worker=worker, caching=True) as solver:
+        tasks = [1, 1, 1, 0, 0, 1, 0, 0, 1, 1, 0]
+        results = solver.solve(tasks)
+        for result, task in zip(results, tasks):
+            assert result == task
+        assert solver.cache[1] == 1
+        assert solver.cache[0] == 0
+
 
 @pytest.mark.parametrize('worker', worker_types, indirect=True)
 def test_error(worker: pckit.Worker):
