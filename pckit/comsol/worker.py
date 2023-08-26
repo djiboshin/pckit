@@ -41,13 +41,13 @@ class ComsolWorker(Worker):
         self.model.java = self.client.load(self._filepath).java
         self.model.configure()
 
-    def do_the_job(self, task: Task) -> Result:
+    def do_the_job(self, task: Task, task_id: int = None) -> Result:
         self.model.pre_build(task)
         self.model.build()
         self.model.pre_solve(task)
         self.model.mesh()
         self.model.solve()
-        results = self.model.results(task)
+        results = super(ComsolWorker, self).do_the_job(task=task, task_id=task_id)
         self.model.pre_clear(task)
         self.model.clear()
         return results
