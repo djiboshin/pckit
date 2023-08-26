@@ -28,15 +28,19 @@ if __name__ == '__main__':
         print(results)
         # >>> [4, 9]
 ```
+Workers number can be controlled by `workers_num` argument.
 
 ### MPI
 You can easily run scripts on the cluster with [mpi4py](https://github.com/mpi4py/mpi4py) implementation on MPI (See [mpi4py installation docs](https://mpi4py.readthedocs.io/en/stable/install.html)).
-Simply change `MultiprocessingWorker` to `MPIWorker` in the previous example and start the script with MPI `mpiexec -np 3 python -m mpi4py your_script.py`
+Simply change `MultiprocessingWorker` to `MPIWorker` in the previous example and start the script with MPI `mpiexec -np <n> python -m mpi4py your_script.py`, where `<n>` is a number of workers.
 
 ```python
 worker = pckit.MPIWorker(model)
 ```
-Moreover, a multiprocessing solver can be started inside an MPI solver.
+By default, zero rank process is also used as a worker.
+It can be controlled by `zero_rank_usage` argument of `get_solver` function.
+
+[//]: # (Moreover, a multiprocessing solver can be started inside an MPI solver.)
 
 ### Single thread
 Single threaded execution is also available with `Worker`
@@ -60,6 +64,9 @@ with pckit.get_solver(worker, caching=True) as solver:
 
 The second task's solution will be reused from the cache.
 
+You can create your own cache by implementing `__contains__`, `__getitem__`, `__setitem__` of the `BaseCache` class.
+See [example](https://github.com/djiboshin/pckit/blob/main/examples/cache_custom.py) for more details.
+
 ### Custom iterators
 You can send emails or print anything during evaluation with custom iterator.
 [tqdm](https://pypi.org/project/tqdm/) is also supported.
@@ -69,6 +76,10 @@ import tqdm
 results = solver.solve(tasks, iterator=tqdm.tqdm)
 ```
 See [example](https://github.com/djiboshin/pckit/blob/main/examples/iterator_custom.py) to create your own iterator.
+
+### Logging with MPI
+
+See [example](https://github.com/djiboshin/pckit/blob/main/examples/logging_mpi.py)
 
 ### Comsol Models, Solvers, Workers
 Based on [MPh](https://pypi.org/project/MPh/) package.
