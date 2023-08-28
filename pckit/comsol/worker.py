@@ -34,6 +34,7 @@ class ComsolWorker(Worker):
         self._filepath = filepath
 
     def start(self):
+        super(ComsolWorker, self).start()
         for option in self._mph_options:
             mph.option(option, self._mph_options[option])
         logger.debug(f'Opening COMSOL model {self._filepath}')
@@ -56,10 +57,10 @@ class ComsolWorker(Worker):
 # noinspection PyMissingOrEmptyDocstring
 class ComsolMultiprocessingWorker(ComsolWorker, MultiprocessingWorker):
     def start(self):
-        super().start()
+        super(ComsolMultiprocessingWorker, self).start()
 
 
 # noinspection PyMissingOrEmptyDocstring
 class ComsolMPIWorker(ComsolWorker, MPIWorker):
     def start(self):
-        super().start()
+        super(ComsolMPIWorker, self).start()
