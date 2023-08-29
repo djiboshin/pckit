@@ -181,7 +181,7 @@ class MultiprocessingSolver(Solver):
         for _ in iterator(tasks):
             (i, res) = self._results.get()
             if i == -1:
-                raise RuntimeError(res)
+                raise RuntimeError from res
             yield i, res
 
     def _stop_workers(self):
