@@ -1,22 +1,8 @@
 import pckit
-from pckit import MPIWorker, Model, MultiprocessingWorker
-from pckit.logging_utils import MPIFileHandler, MPIRecordFactory
-import logging
-import sys
+from pckit import MPIWorker, Model
+
 import time
 import numpy as np
-
-# add rank and hostname attrs for format parsing
-logging.setLogRecordFactory(MPIRecordFactory())
-fmt = '%(asctime)s [Rank %(rank)s %(hostname)s] [%(name)s] [%(levelname)s]: %(message)s'
-formatter = logging.Formatter(fmt=fmt)
-
-logger = logging.getLogger()
-logger.setLevel(logging.DEBUG)
-# add stdout handler
-sh = logging.StreamHandler(sys.stdout)
-sh.setFormatter(formatter)
-logger.addHandler(sh)
 
 
 def iterator(lst):
