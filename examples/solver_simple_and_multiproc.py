@@ -5,13 +5,23 @@ import time
 # adding logging for solver and workers
 # Be careful with multiprocessing and file logging handler at the same time
 import logging
+from pckit.logging_utils import MultiprocessingRecordFactory
 
+# setting the formatter to the stdout
+logging.setLogRecordFactory(MultiprocessingRecordFactory())
+fmt = '%(asctime)s [%(proc_name)s %(hostname)s] [%(name)s] [%(levelname)s]: %(message)s'
+formatter = logging.Formatter(fmt=fmt)
+
+sh = logging.StreamHandler(sys.stdout)
+sh.setFormatter(formatter)
+
+# adding stdout handler to loggers
 gs = logging.getLogger('pckit.solver')
-gs.addHandler(logging.StreamHandler(sys.stdout))
+gs.addHandler(sh)
 gs.setLevel(logging.DEBUG)
 
 gw = logging.getLogger('pckit.worker')
-gw.addHandler(logging.StreamHandler(sys.stdout))
+gw.addHandler(sh)
 gw.setLevel(logging.INFO)
 
 
