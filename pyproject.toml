@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "pckit"
-version = "0.5.2"
+version = "0.5.3"
 description = "A simple package for parallel computing with Python"
 authors = ["djiboshin"]
 readme = "README.md"
