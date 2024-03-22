@@ -16,7 +16,7 @@ include = [
 python = "^3.9"
 numpy = "^1.25.2"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 pytest = "^7.4.0"
 pylint = "^2.13.8"
 pytest-cov = "^4.1.0"
