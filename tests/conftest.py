@@ -5,4 +5,4 @@ import pytest
 def set_multiprocessing_start_method():
     # https://github.com/pytest-dev/pytest/issues/11174
     import multiprocessing as mp
-    mp.set_start_method("spawn", force=True)
+    mp.set_start_method("forkserver", force=True)
