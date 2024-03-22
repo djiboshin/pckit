@@ -57,6 +57,10 @@ def task_iterator(iterable: Sequence[Task]) -> Iterator[Task]:
     return iterable.__iter__()
 
 
+class WorkerSideError(RuntimeError):
+    pass
+
+
 class Solver(ABC, Generic[Task, Result]):
     """Base Solver class"""
     def __init__(
@@ -136,6 +140,9 @@ class Solver(ABC, Generic[Task, Result]):
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+    def close(self):
+        self.__exit__(None, None, None)
+
 
 class MultiprocessingSolver(Solver):
     """Multiprocessing Solver implementation"""
@@ -181,10 +188,17 @@ class MultiprocessingSolver(Solver):
         for _ in iterator(tasks):
             (i, res) = self._results.get()
             if i == -1:
-                raise RuntimeError from res
+                error = WorkerSideError('The error has been raised at some worker process')
+                logger.error(error)
+                raise error
+
+            # enables print() in the iterator when running with mpiexec
+            sys.stdout.flush()
+
             yield i, res
 
     def _stop_workers(self):
+        logger.debug("Stopping the workers")
         for i in range(self.total_workers):
             self._jobs.put((None, None))
         for worker in self.workers:
@@ -225,7 +239,8 @@ class SimpleSolver(Solver):
             try:
                 yield i, self.worker.do_the_job(task, task_id=i)
             except Exception as err:
-                raise RuntimeError from err
+                logger.exception(err)
+                raise WorkerSideError()
 
 
 class MPISolver(Solver):
@@ -254,8 +269,10 @@ class MPISolver(Solver):
         self.zero_rank_usage = zero_rank_usage
         if zero_rank_usage:
             self.total_workers = self.comm.Get_size()
+            self.workers_ranks = tuple(range(self.total_workers))
         else:
             self.total_workers = self.comm.Get_size() - 1
+            self.workers_ranks = tuple(range(1, self.total_workers + 1))
 
         if self.rank != 0:
             logger.debug('Starting loop in worker with rank %i', self.rank)
@@ -275,31 +292,58 @@ class MPISolver(Solver):
             raise RuntimeError('Not enough workers! '
                                f'Need at least 1, detected {self.total_workers}.')
 
+    def _send_job(self, dest, job: Tuple[int, Task]):
+        if dest != 0:
+            req = self.comm.isend(job, dest=dest)
+            req.wait()
+        else:
+            # for zero-rank worker the jobs queue is used
+            self.jobs.put(job)
+        # create request for the job result
+        request = self.comm.irecv(self.buffer_size, source=dest)
+        return request
+
     def _solve(
             self,
             tasks: Sequence[Task],
             iterator: Callable[[Sequence[Task]], Iterator[Task]]
     ) -> Generator[tuple[int, Result], None, None]:
         requests = []
-        for i, task in enumerate(tasks):
-            dest = i % self.total_workers
-            # do not send a task to zero rank worker
-            if not self.zero_rank_usage:
-                dest += 1
+        tasks_generator = enumerate(tasks)
 
-            if dest != 0:
-                req = self.comm.isend((i, task), dest=dest, tag=i)
-                req.wait()
-            else:
-                self.jobs.put((i, task))
+        def get_new_task_and_send(dest):
+            """Get the next task from iterator and send it to the dest worker"""
+            try:
+                task_number, task = next(tasks_generator)
+                request = self._send_job(dest, (task_number, task))
+                requests.append(request)
+            except StopIteration:
+                pass
 
-            requests.append(self.comm.irecv(self.buffer_size, source=dest))
+        for worker_rank in self.workers_ranks:
+            # send one task for each worker
+            get_new_task_and_send(worker_rank)
 
         for _ in iterator(tasks):
-            (k, (i, res)) = self._MPI.Request.waitany(requests)
+            # Status is used to get source rank of the result
+            status = self._MPI.Status()
+            # wait for any task to be done
+            (k, (i, res)) = self._MPI.Request.waitany(requests, status=status)
+            requests.pop(k)
+            if i == -1:
+                error = WorkerSideError(f'The error has been raised at the rank {status.source} worker')
+                logger.error(error)
+                raise error
+            # send a new task for the worker
+            get_new_task_and_send(status.source)
+
+            # enables print() in the iterator when running with mpiexec
+            sys.stdout.flush()
+
             yield i, res
 
     def _stop_workers(self):
+        logger.debug("Stopping the workers")
         if self.rank == 0:
             for i in range(1, self.comm.Get_size()):
                 req = self.comm.isend((None, None), dest=i)
@@ -313,7 +357,8 @@ class MPISolver(Solver):
         # shutdown logging will cause `MPIFileHandler` to be closed
         logging.shutdown()
         self._MPI.Finalize()
-        sys.exit()
+        if self.rank != 0:
+            sys.exit()
 
     def __enter__(self):
         return self

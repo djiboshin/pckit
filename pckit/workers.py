@@ -88,8 +88,8 @@ class MultiprocessingWorker(Worker):
                 results.put((numbered_task.id, res))
                 jobs.task_done()
             except Exception as err:
+                logger.exception(err)
                 results.put((-1, err))
-                break
 
 
 class MPIWorker(Worker):
@@ -120,9 +120,14 @@ class MPIWorker(Worker):
         self._threading_loop(comm, jobs)
 
     def _do_the_job_and_send(self, comm, numbered_task: NumberedTask):
-        res = self.do_the_job(task=numbered_task.task, task_id=numbered_task.id)
-        req = comm.isend((numbered_task.id, res), dest=0)
-        req.wait()
+        try:
+            res = self.do_the_job(task=numbered_task.task, task_id=numbered_task.id)
+            req = comm.isend((numbered_task.id, res), dest=0)
+            req.wait()
+        except Exception as err:
+            logger.exception(err)
+            req = comm.isend((-1, err), dest=0)
+            req.wait()
 
     def _threading_loop(self, comm, jobs: queue.Queue):
         """Threading loop makes it possible to run worker in zero rank"""
